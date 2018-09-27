@@ -1,6 +1,9 @@
+## sf R package
 
+Package `sf` puts geometries in a list-column of class `sfc`, where each list element is a feature geometry of class `sfg`. 
 
-Package `sf` puts geometries in a list-column of class `sfc`, where each list element is a feature geometry of class `sfg`. Feature geometries are represented in R by
+#### Feature Geometries
+Feature geometries are represented in R by
 
 * a numeric vector for a single point (`POINT`)
 * a numeric matrix (each row a point) for a set of points (`MULTIPOINT` or `LINESTRING`)
