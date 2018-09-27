@@ -1,0 +1,19 @@
+
+
+Package `sf` puts geometries in a list-column of class `sfc`, where each list element is a feature geometry of class `sfg`. Feature geometries are represented in R by
+
+* a numeric vector for a single point (`POINT`)
+* a numeric matrix (each row a point) for a set of points (`MULTIPOINT` or `LINESTRING`)
+* a list of matrices for a set of set of points (`MULTIINESTRING`, `POLYGON`)
+* a list of lists of matrices  (`MULTIPOLYGON`)
+* a list of anything mentioned above  (`GEOMETRYCOLLECTION`)
+
+(all other classes also fall in one of these categories)
+
+Other tidy aspects of `sf`:
+
+* all functions/methods start with `st_` (press tab to search), use `_` and underscores
+* all function have data as first argument, "pipe-friendly"
+* `read_sf` is an alias for `st_read` with tidy defaults: silent, `stringAsFactors = FALSE`
+* many tidy verbs implemented as methods for `sf` objects (see further down)
+

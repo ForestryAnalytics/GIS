@@ -1,0 +1,93 @@
+
+
+```R
+
+### manipulating geometries
+
+* `st_line_merge`: merges lines
+* `st_segmentize`: adds points to straight lines
+* `st_voronoi`: creates voronoi tesselation
+* `st_centroid`: gives centroid of geometry
+* `st_convex_hull`: creates convex hull of set of points
+* `st_triangulate`: triangulates set of points (not constrained)
+* `st_polygonize`: creates polygon from lines that form a closed ring
+* `st_simplify`: simplifies lines by removing vertices
+* `st_split`: split a polygon given line geometry
+* `st_buffer`: compute a buffer around this geometry/each geometry
+* `st_make_valid`: tries to make an invalid geometry valid (requires lwgeom)
+* `st_boundary`: return the boundary of a geometry
+
+### convenience functions
+
+* `st_zm`: sets or removes z and/or m geometry
+* `st_coordinates`: retrieve coordinates in a matrix or data.frame
+* `st_geometry`: set, or retrieve `sfc` from an `sf` object
+* `st_is`: check whether geometry is of a particular type
+
+### handling mixes: `GEOMETRY`, `GEOMETRYCOLLECTION`
+
+We can have mixes of geometries with different types at two levels: at the feature level, and at the feature set level. At the feature level:
+```{r}
+p = st_point(c(0,1))
+mp = st_multipoint(rbind(c(1,1), c(3,3)))
+ls = st_linestring(rbind(c(1,1), c(3,3)))
+(gc = st_geometrycollection(list(p, mp)))
+st_sfc(gc)
+```
+
+Where do these come from? For instance from `st_intersection`:
+```{r}
+opar <- par(mfrow = c(1, 2))
+a <- st_polygon(list(cbind(c(0,0,7.5,7.5,0),c(0,-1,-1,0,0))))
+b <- st_polygon(list(cbind(c(0,1,2,3,4,5,6,7,7,0),c(1,0,.5,0,0,0.5,-0.5,-0.5,1,1))))
+plot(a, ylim = c(-1,1))
+title("intersecting two polygons:")
+plot(b, add = TRUE, border = 'red')
+(i <- st_intersection(a,b))
+plot(a, ylim = c(-1,1))
+title("GEOMETRYCOLLECTION")
+plot(b, add = TRUE, border = 'red')
+plot(i, add = TRUE, col = 'green', lwd = 2)
+par(opar)
+```
+
+At the feature set level we end up with `GEOMETRY` objects:
+```{r}
+(gm = st_sfc(p, mp, ls))
+```
+How to deal with such messy data? One thing we could do is select:
+```{r}
+sf = st_sf(a = 1:3, geom = gm)
+st_dimension(sf)
+sf[st_dimension(sf) == 1,]
+```
+another is to cast geometries to a common class:
+```{r}
+st_cast(sf, "MULTIPOINT")
+```
+which converts the `LINESTRING` to a `MULTIPOINT` as well.
+
+`st_cast` also tries to unravel `GEOMETRYCOLLECTION` geometries in their parts:
+```{r}
+(parts = st_cast(st_sf(a = 1, geometry = st_sfc(gc))))
+```
+potentially repeating associated attributes, and tries to find a common class when given no argument 
+```{r}
+st_cast(parts)
+```
+
+### empty geometries
+
+Empty geometries server the role of `NA`, or missing values, for geometries, but they are typed:
+```{r}
+st_point()
+st_geometrycollection()
+```
+
+They can be detected by `st_dimension` returning `NA`:
+```{r}
+st_sfc(st_point(0:1), st_point(), st_geometrycollection()) %>%
+	st_dimension
+```
+
+```
