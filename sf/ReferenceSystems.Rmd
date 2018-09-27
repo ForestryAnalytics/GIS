@@ -1,6 +1,10 @@
 
 
-```R
+```{r}
+library(sf)
+library(dplyr)
+library(magrittr)
+```
 
 ## Reference systems
 
@@ -100,8 +104,17 @@ ncg = st_geometry(nc[1:3,])
 plot(ncg, col = sf.colors(3, categorical = TRUE))
 u = st_union(ncg)
 plot(u, lwd = 2)
+```
+
+```{r, fig=TRUE}
 plot(st_intersection(ncg[1], ncg[2]), col = 'red', add = TRUE)
+```
+
+```{r, fig=TRUE}
 plot(st_buffer(u, 10000), border = 'blue', add = TRUE)
+```
+
+```{r, fig=TRUE}
 # st_buffer(u, units::set_unit(10, km)) # with sf devel
 plot(st_buffer(u, -5000), border = 'green', add = TRUE)
 par(opar)
@@ -125,6 +138,9 @@ sum(a2$BIR74) / sum(nc$BIR74)
 a1$what = "intensive"
 a2$what = "extensive"
 # devtools::install_github("tidyverse/ggplot2")
+```
+
+```{r, fig=TRUE}
 library(ggplot2)
 l = st_cast(nc, "LINESTRING")
 ggplot() + geom_sf(data = rbind(a1,a2), aes(fill = BIR74)) + 
@@ -156,6 +172,9 @@ Which points touch four states?
 pts = st_intersection(nc, nc)
 pts = pts[st_dimension(pts) == 0, ]
 plot(st_geometry(nc))
+```
+
+```{r, fig=TRUE}
 plot(st_geometry(nc[sel,]), add = TRUE, col = 'grey')
 plot(st_geometry(pts), add = TRUE, col = '#ff000044', pch = 16)
 # how many neighbours does each of these points have?
