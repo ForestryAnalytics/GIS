@@ -1,8 +1,11 @@
+## sf Geometries
 
-
-```R
-
-### manipulating geometries
+```{r, echo = FALSE, include = FALSE}
+library(sf)
+library(dplyr)
+library(magrittr}
+```
+### Manipulating Geometries
 
 * `st_line_merge`: merges lines
 * `st_segmentize`: adds points to straight lines
@@ -14,7 +17,7 @@
 * `st_simplify`: simplifies lines by removing vertices
 * `st_split`: split a polygon given line geometry
 * `st_buffer`: compute a buffer around this geometry/each geometry
-* `st_make_valid`: tries to make an invalid geometry valid (requires lwgeom)
+* `st_make_valid`: tries to make an invalid geometry valid (requires ``lwgeom``)
 * `st_boundary`: return the boundary of a geometry
 
 ### convenience functions
