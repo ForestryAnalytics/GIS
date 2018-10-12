@@ -1,0 +1,254 @@
+Geographic Data Science Lab
+HOME
+ABOUT
+BLOG
+TEAM
+TRAINING
+PROJECTS
+FIRST IMPRESSIONS FROM SF – THE SIMPLE FEATURES R PACKAGE
+Posted by Michalis Pavlis | 2  |     
+sf is the R package for spatial analysis that will gradually replace the well known sp package. The project has gained a lot of traction lately with 3 vignettes documenting the package available here, here and here while the source code is available on CRAN and github.
+
+My impressions so far:
+
+Importing data with sf is significantly faster. For example, using rgdal to import a national scale road network of 4,479,738 line features for Great Britain takes 86 x more time and creates a 2.5 x larger dataset compared to sf.
+
+###################################################################################################
+#                            Import the road network as data frame with sf                        #
+###################################################################################################
+
+system.time(road_sf <- st_read("master_road.shp", stringsAsFactors = F))
+# Reading layer `master_road' from data source `master_road.shp' using driver `ESRI Shapefile'
+# Simple feature collection with 4479738 features and 4 fields
+# geometry type:  LINESTRING
+# dimension:      XY
+# bbox:           xmin: 98371.16 ymin: 11457.03 xmax: 655563.6 ymax: 1190899
+# epsg (SRID):    NA
+# proj4string:    +proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +datum=OSGB36 +units=m +no_defs
+#   user  system elapsed 
+# 21.416   1.016  22.433 
+
+object.size(road_sf)
+# 3135688416 bytes
+
+###################################################################################################
+#                     Import the road network as SpatialLinesDataFrame with rgdal                 #
+###################################################################################################
+
+system.time(road_sp <- readOGR(".","master_road", stringsAsFactors = F))
+# OGR data source with driver: ESRI Shapefile 
+# layer: "master_road"
+# with 4479738 features
+# It has 4 fields
+#     user   system  elapsed 
+# 1940.400    4.988 1945.420 
+
+object.size(road_sp)
+# 7973804432 bytes
+view rawimport_road.r hosted with ❤ by GitHub
+I like the simplicity of the object representation. With sf, vector objects are stored in a data frame and are represented by a single class ‘sf’. Compare that to sp where the data are stored in different S4 Spatial* objects and are represented by a different class depending on the geometry type.
+
+I like the simplicity of the geometry representation. Using sf the geometry attributes are stored in a column of class ‘sfc’, each individual feature (e.g. point, line) is of class ‘sfg’ and the name of the column is always geometry. Whereas with sp the class of the geometry object as well as the name of the slot containing the geometry differ depending on the geometry type.
+
+#####################################################################################################
+#                              road_sf is a data frame of 'sf' class                                #
+#####################################################################################################
+class(road_sf)
+# [1] "sf"         "data.frame"
+ 
+head(road_sf)
+# Simple feature collection with 6 features and 4 fields
+# geometry type:  LINESTRING
+# dimension:      XY
+# bbox:           xmin: 263186 ymin: 267035.1 xmax: 266429.5 ymax: 666774
+# epsg (SRID):    NA
+# proj4string:    +proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +datum=OSGB36 +units=m +no_defs
+#      gid desc_road area_id area_id2                       geometry
+# 1 166045    A Road       3        3 LINESTRING(263196.166 66637...
+# ...
+
+#####################################################################################################
+#            road_sp is a 'SpatialLinesDataFrame' object of 'SpatialLinesDataFrame' class           #
+#####################################################################################################
+class(road_sp)
+# [1] "SpatialLinesDataFrame"
+# attr(,"package")
+# [1] "sp"
+
+head(road_sp)
+# An object of class "SpatialLinesDataFrame"
+# Slot "data":
+#   gid desc_road area_id area_id2
+# 0 166045    A Road       3        3
+# ...
+# 
+# Slot "lines":
+#   [[1]]
+# An object of class "Lines"
+# Slot "Lines":
+#   [[1]]
+# An object of class "Line"
+# Slot "coords":
+#   [,1]     [,2]
+# [1,] 263196.2 666373.4
+# [2,] 263186.0 666360.0
+# 
+# Slot "ID":
+#   [1] "0" 
+# ...
+view rawroad_description.r hosted with ❤ by GitHub
+It is easier to access the underlying points of the geometries within sf objects. Even though you can get a human readable representation of the geometry in sf with the function st_as_text, you can rbind and cbind your way through the geometry column in order to extract the coordinates as a matrix.
+
+###############################################################################################
+#                            Extract the coordinates from the sf object                       #
+###############################################################################################
+
+##### 1. You can dump the coordinates in a matrix without using R loop ########################
+
+system.time(coords_sf <- do.call(rbind, unclass(st_geometry(road_sf))))
+
+# user  system elapsed 
+# 9.632   0.064   9.693
+
+dim(coords_sf)
+#[1] 32696134        2
+
+head(coords_sf)
+#          [,1]     [,2]
+# [1,] 263196.2 666373.4
+# [2,] 263186.0 666360.0
+# [3,] 263515.0 666774.0
+# [4,] 263497.0 666756.0
+# [5,] 263571.0 660844.0
+# [6,] 263562.0 660836.0
+
+##### 2. More useful to add the id of the line, requires slow R loop ##########################
+
+system.time(do.call(rbind, lapply(1:nrow(road_sf), function(x) cbind(x, unclass(st_geometry(road_sf)[[x]])))))
+
+# user  system elapsed 
+# 70.596   0.084  70.666 
+
+# there is no significant processing time difference between the st_geometry method and the '$'
+system.time(do.call(rbind, lapply(1:nrow(road_sf), function(x) cbind(x, unclass(road_sf$geometry[[x]])))))
+
+# user  system elapsed 
+# 67.900   0.004  67.893 
+
+###############################################################################################
+#                 Extract the coordinates from the SpatialLinesDataFrame object               #
+###############################################################################################
+
+##### 1. Extracting the coordinates requires two nested loops #################################
+
+system.time(do.call(rbind, lapply(road_sp@lines, function(x)
+  do.call(rbind, lapply(x@Lines, function(line)
+   line@coords)))))
+   
+# user  system elapsed 
+# 33.244   0.004  33.247
+
+##### 2. adding the id, the processing time is similar to the example with the sf object #####
+
+system.time(do.call(rbind, lapply(1:length(road_sp@lines), function(x)
+   do.call(rbind, lapply(road_sp@lines[[x]]@Lines, function(line)
+     cbind(x, line@coords))))))
+     
+# user  system elapsed 
+# 71.340   0.372  71.717
+view rawextract_coords.r hosted with ❤ by GitHub
+Given that the spatial object is a data frame it opens up quite a few possibilities. First of all the data geometry is represented as a field in the data frame, nothing is stopping you from adding more geometry fields. In addition, paired with the data.table package you could manipulate the attribute and geometry fields by reference, thus avoiding making copies of the data frame. The problem is that by coercing the data frame to data table the ‘sf’ class is removed, nevertheless, the class of the geometry column is still ‘sfc’ so you could still use it as input to those functions that accept ‘sfc’ class objects.
+
+#########################################################################################################################
+#                                   Trace memory when performing spatial analysis                                       #
+#########################################################################################################################
+
+##### 1. make a copy of the data frame ##################################################################################
+road_sf2 <- road_sf
+
+##### 2. trace object ###################################################################################################
+tracemem(road_sf)
+# [1] "<0x2121d7370>"
+
+##### 3. create a new geometry field by transforming from british grid to wgs84 #########################################
+road_sf$geometry2 <- st_transform(road_sf$geometry, crs = 4326)
+# tracemem[0x2121d7370 -> 0x1e98b8020]: 
+# tracemem[0x1e98b8020 -> 0x1e98b8088]: $<-.data.frame $<- 
+# tracemem[0x1e98b8088 -> 0x1e98b80f0]: $<-.data.frame $<- 
+# it created three copies
+
+##### 4. by default information about the first geometry field is printed only ##########################################
+head(road_sf)
+# Simple feature collection with 6 features and 5 fields
+# geometry type:  LINESTRING
+# dimension:      XY
+# bbox:           xmin: 263186 ymin: 267035.1 xmax: 266429.5 ymax: 666774
+# epsg (SRID):    NA
+# proj4string:    +proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +datum=OSGB36 +units=m +no_defs
+# gid desc_road area_id area_id2                       geometry                      geometry2
+# 1 166045    A Road       3        3 LINESTRING(263196.166 66637... LINESTRING(-4.1879313237561...
+
+##### 5. both fields are of class 'sfc' #################################################################################
+class(road_sf$geometry)
+# [1] "sfc_LINESTRING" "sfc"           
+
+class(road_sf$geometry2)
+# [1] "sfc_LINESTRING" "sfc" 
+
+##### 6. coerce to data table ###########################################################################################
+setDT(road_sf2)
+
+# the 'sf' class was replaced by 'data.table'
+class(road_sf2)
+# [1] "data.table" "data.frame"
+
+# the geometry column class is 'sfc' though
+class(road_sf2$geometry)
+# "sfc_LINESTRING" "sfc"
+
+##### 7. create a new geometry field by reference #######################################################################
+tracemem(road_sf2)
+road_sf2[, geometry2 := st_transform(geometry, crs = 4326)]
+# does not create a copy
+view rawspatial_data_table.r hosted with ❤ by GitHub
+All in all sf looks quite promising, I’d like to see better support for data.table (a spatial extension of data.table with support for spatial indexes maybe?) and perhaps the naming convention for functions returning to camelCase as in package sp.
+
+ 
+
+ 
+SHARE:  RATE:12345
+PREVIOUSNew year resolutions, gyms and health NEXTSolutions to the proj issue with rgdal in R
+ABOUT THE AUTHOR
+Michalis Pavlis
+Michalis Pavlis
+RELATED POSTS
+Geographic Data Science for Urban Analytics Workshop in Japan
+Geographic Data Science for Urban Analytics Workshop in Japan
+
+January 26, 2017
+Building an Academic Website using Rmarkdown
+Building an Academic Website using Rmarkdown
+
+August 18, 2016
+Open Geographic Information Science
+Open Geographic Information Science
+
+August 25, 2016
+Short GIS Courses – Liverpool and London
+Short GIS Courses – Liverpool and London
+
+October 3, 2016
+2 COMMENTS
+
+Mel
+Mel	on February 21, 2017 at 1:01 am
+Michalis, thanks for sharing these first impressions. I’m also testing an sf+data.table workflow to replace my sp+data.table routines and running into some of the limitations you noted. sf support for data.table and spatial indexing goodies would make sense, possibly also using pointers to external (out of workspace) representations of spatial features (as Roger Bivand suggested here https://github.com/edzer/sfr/issues/7). Not sure who might be interested/willing to add `sf` support to `data.table` (don’t think I’m capable). I did nudge `data.table` team back then https://github.com/Rdatatable/data.table/issues/1900. Feel free to upvote maybe.
+REPLY
+Michalis Pavlis
+Michalis Pavlis	on February 21, 2017 at 11:31 am
+At the very least I’d like to see sf and data.table respecting each other’s class attribute
+REPLY
+LEAVE A REPLY
+Your email address will not be published. Required fields are marked *
+
+
